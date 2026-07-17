@@ -3,17 +3,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "UniBook | Room reservations",
-  description:
-    "A student-built meeting-room reservation system prototype.",
+  description: "A clear meeting-room reservation calendar for Unibank employees.",
   icons: { icon: "/favicon.svg" },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
-  return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
-  );
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return <html lang="en"><body>{children}</body></html>;
 }

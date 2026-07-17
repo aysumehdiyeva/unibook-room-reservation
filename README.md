@@ -23,6 +23,14 @@ CTIS student at Bilkent University
 - Responsive layout for desktop and smaller screens
 - Prototype login and logout flow
 
+## Latest Milestone: Secure Prototype Sessions
+
+- Added HTTP-only demo session cookies
+- Removed client-supplied admin roles from reservation APIs
+- Centralized room-access and cancellation rules
+- Split login, Address Book, and admin interfaces into separate components
+- Added automated collision and permission tests
+
 ## Authentication Plan
 
 The current login screen is a prototype account selector for demonstrating user roles and room permissions. A production deployment should use the organization’s Microsoft Entra ID work accounts. Authentication and authorization must be verified on the server before the system is used with real employee data.
@@ -91,3 +99,4 @@ npm run build
 ## Project Status
 
 Active student project. The interface and reservation workflow are being improved step by step. This repository is a portfolio-safe demonstration and is not an official Unibank production system.
+

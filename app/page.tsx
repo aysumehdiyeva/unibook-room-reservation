@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { SignInScreen } from "./components/SignInScreen";
+import { AdminPanel, RoomEditor, AddRoom } from "./components/AdminRooms";
+import { AddressBook } from "./components/AddressBook";
 
 type Employee = {
   id: string;
@@ -50,7 +53,7 @@ const fallbackEmployees: Employee[] = [
     email: "aysu@example.com",
     company: "Demo Company",
     alias: "aysu",
-    department: "Product",
+    department: "Business",
     role: "employee",
   },
   {
@@ -102,7 +105,7 @@ const fallbackEmployees: Employee[] = [
     email: "ethan@example.com",
     company: "Demo Company",
     alias: "ethan.brooks",
-    department: "Digital Products",
+    department: "Digital Banking",
     role: "employee",
   },
   {
@@ -254,7 +257,8 @@ export default function Home() {
   const [data, setData] = useState<State>(fallback);
   const [page, setPage] = useState<Page>("calendar");
   const [currentUserId, setCurrentUserId] = useState("aysu");
-  const [signedIn, setSignedIn] = useState(true);
+  const [signedIn, setSignedIn] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
   const [week, setWeek] = useState(0);
   const [day, setDay] = useState(0);
   const [profileMenu, setProfileMenu] = useState(false);
@@ -290,10 +294,16 @@ export default function Home() {
   }
   useEffect(() => {
     void refresh();
-    const storedUser = window.localStorage.getItem("unibook-demo-user");
-    const storedSession = window.localStorage.getItem("unibook-demo-signed-in");
-    if (storedUser) setCurrentUserId(storedUser);
-    if (storedSession === "false") setSignedIn(false);
+    void fetch("/api/session", { cache: "no-store" })
+      .then((response) => response.json() as Promise<{ userId: string | null }>)
+      .then(({ userId }) => {
+        if (userId) {
+          setCurrentUserId(userId);
+          setReservedFor(userId);
+          setSignedIn(true);
+        }
+      })
+      .finally(() => setSessionReady(true));
   }, []);
 
   const employeeMap = useMemo(
@@ -389,7 +399,6 @@ export default function Home() {
           start: optimisticBooking.start,
           end: optimisticBooking.end,
           employeeId: optimisticBooking.employee_id,
-          createdBy: optimisticBooking.created_by,
         },
         false,
       );
@@ -417,36 +426,38 @@ export default function Home() {
 
   async function cancelBooking(id: number) {
     try {
-      await api({
-        action: "cancel",
-        id,
-        userId: currentUser.id,
-        role: currentUser.role,
-      });
+      await api({ action: "cancel", id });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to cancel.");
     }
   }
 
-  function switchUser(id: string) {
+  async function switchUser(id: string) {
+    const response = await fetch("/api/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: id }),
+    });
+    if (!response.ok) {
+      setError("Unable to start this demo session.");
+      return;
+    }
     setCurrentUserId(id);
     setReservedFor(id);
     setSignedIn(true);
     setDemoLogin(false);
     setProfileMenu(false);
     setPage("calendar");
-    window.localStorage.setItem("unibook-demo-user", id);
-    window.localStorage.setItem("unibook-demo-signed-in", "true");
   }
 
-  function logOut() {
+  async function logOut() {
+    await fetch("/api/session", { method: "DELETE" });
     setSignedIn(false);
     setProfileMenu(false);
     setSelectedEmployee(null);
     setSelectedSlot(null);
     setDemoLogin(false);
     setPage("calendar");
-    window.localStorage.setItem("unibook-demo-signed-in", "false");
   }
 
   async function saveRoom(values: Record<string, unknown>) {
@@ -473,7 +484,7 @@ export default function Home() {
     }));
     setAdminRoom(null);
     try {
-      await api({ action: "room", role: currentUser.role, ...values }, false);
+      await api({ action: "room", ...values }, false);
     } catch (caught) {
       setError(
         caught instanceof Error ? caught.message : "Unable to save room.",
@@ -507,10 +518,7 @@ export default function Home() {
     }));
     setAddRoom(false);
     try {
-      const result = await api(
-        { action: "room", role: currentUser.role, ...values },
-        false,
-      );
+      const result = await api({ action: "room", ...values }, false);
       if (result.room)
         setData((current) => ({
           ...current,
@@ -532,6 +540,9 @@ export default function Home() {
   const start = days[0];
   const finish = days[4];
   const weekLabel = `${start.date}–${finish.date} ${weekStart(week).toLocaleDateString("en-GB", { month: "long", year: "numeric" })}`;
+
+  if (!sessionReady)
+    return <main className="signin-page" aria-label="Loading UniBook" />;
 
   if (!signedIn)
     return <SignInScreen employees={data.employees} onSelect={switchUser} />;
@@ -816,54 +827,12 @@ export default function Home() {
       )}
 
       {page === "address" && (
-        <section className="content directory-page">
-          <p className="eyebrow">UNIBANK DIRECTORY</p>
-          <h1>Address Book</h1>
-          <p className="subtitle">
-            Find a colleague and view their work contact information.
-          </p>
-          <div className="search-box">
-            <span>⌕</span>
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search the Address Book"
-            />
-          </div>
-          <div className="directory-table">
-            <div className="directory-head">
-              <span>Name</span>
-              <span>Title</span>
-              <span>Business Phone</span>
-              <span>Location</span>
-              <span>Department</span>
-              <span>Email Address</span>
-              <span>Company</span>
-              <span>Alias</span>
-            </div>
-            {filteredEmployees.map((employee) => (
-              <button
-                className="directory-row"
-                key={employee.id}
-                onClick={() => setSelectedEmployee(employee)}
-              >
-                <span className="person-cell">
-                  <b>{initials(employee.name)}</b>
-                  <span>
-                    <strong>{employee.name}</strong>
-                  </span>
-                </span>
-                <span>{employee.title}</span>
-                <span>{employee.phone}</span>
-                <span>{employee.location}</span>
-                <span>{employee.department}</span>
-                <span>{employee.email}</span>
-                <span>{employee.company}</span>
-                <span>{employee.alias}</span>
-              </button>
-            ))}
-          </div>
-        </section>
+        <AddressBook
+          employees={data.employees}
+          search={search}
+          onSearch={setSearch}
+          onSelect={setSelectedEmployee}
+        />
       )}
 
       {page === "admin" && isAdmin && (
@@ -1057,331 +1026,10 @@ function DemoLogin({
           ))}
         </div>
         <small className="demo-note">
-          The real system will use Unibank Microsoft sign-in.
+          The real system will use Demo Company Microsoft sign-in.
         </small>
       </section>
     </div>
   );
 }
 
-function SignInScreen({
-  employees,
-  onSelect,
-}: {
-  employees: Employee[];
-  onSelect: (id: string) => void;
-}) {
-  const [query, setQuery] = useState("");
-  const matches = employees.filter((employee) =>
-    `${employee.name} ${employee.email} ${employee.department}`
-      .toLowerCase()
-      .includes(query.toLowerCase()),
-  );
-  return (
-    <main className="signin-page">
-      <section className="signin-card">
-        <div className="signin-brand">
-          <span className="brand-mark">U</span>
-          <span>
-            <strong>UniBook</strong>
-            <small>Room reservations</small>
-          </span>
-        </div>
-        <p className="eyebrow">UNIBANK WORKSPACE</p>
-        <h1>Welcome back</h1>
-        <p className="signin-intro">
-          Sign in with your employee account to reserve rooms and view your
-          meetings.
-        </p>
-        <label className="signin-search">
-          <span>Employee name or work email</span>
-          <input
-            autoFocus
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search the Address Book"
-          />
-        </label>
-        <div className="signin-results">
-          {matches.map((employee) => (
-            <button key={employee.id} onClick={() => onSelect(employee.id)}>
-              <b>{initials(employee.name)}</b>
-              <span>
-                <strong>{employee.name}</strong>
-                <small>
-                  {employee.email} ·{" "}
-                  {employee.role === "admin"
-                    ? "Administrator"
-                    : employee.department}
-                </small>
-              </span>
-              <i>Sign in</i>
-            </button>
-          ))}
-          {matches.length === 0 && <p>No employee found.</p>}
-        </div>
-        <div className="signin-note">
-          <strong>Prototype sign-in</strong>
-          <span>
-            For the final bank version, this screen will connect to Unibank
-            Microsoft accounts. No separate UniBook password will be needed.
-          </span>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function AdminPanel({
-  rooms,
-  employees,
-  onEdit,
-  onAdd,
-}: {
-  rooms: Room[];
-  employees: Employee[];
-  onEdit: (room: Room) => void;
-  onAdd: () => void;
-}) {
-  return (
-    <section className="content admin-page">
-      <div className="heading-row">
-        <div>
-          <p className="eyebrow">ADMINISTRATION</p>
-          <h1>Rooms</h1>
-          <p className="subtitle">Manage room availability and access.</p>
-        </div>
-        <button className="primary-small" onClick={onAdd}>
-          + Add room
-        </button>
-      </div>
-      <div className="admin-list">
-        {rooms.map((room) => (
-          <div
-            className={`admin-room ${!room.active ? "inactive-room" : ""}`}
-            key={room.id}
-          >
-            <div>
-              <RoomTitle name={room.name} />
-              <span>
-                {!room.active
-                  ? "Removed from calendar"
-                  : room.status === "unavailable"
-                    ? `Unavailable${room.reason ? ` · ${room.reason}` : ""}`
-                    : room.access === "employee"
-                      ? `Restricted · ${employees.find((employee) => employee.id === room.allowed_employee_id)?.name ?? "Selected employee"}`
-                      : room.access === "department"
-                        ? "Restricted · IT Office"
-                        : "Available · All workers"}
-              </span>
-            </div>
-            <button onClick={() => onEdit(room)}>Edit</button>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function RoomEditor({
-  room,
-  employees,
-  onClose,
-  onSave,
-}: {
-  room: Room;
-  employees: Employee[];
-  onClose: () => void;
-  onSave: (values: Record<string, unknown>) => Promise<void>;
-}) {
-  const [displayLabel, setDisplayLabel] = useState(room.display_label);
-  const [roomPhone, setRoomPhone] = useState(room.room_phone);
-  const [status, setStatus] = useState(room.status);
-  const [reason, setReason] = useState(room.reason ?? "");
-  const [access, setAccess] = useState(room.access);
-  const [allowed, setAllowed] = useState(
-    room.allowed_employee_id ?? "assistant",
-  );
-  const [active, setActive] = useState(Boolean(room.active));
-  return (
-    <div className="modal-backdrop">
-      <section className="modal admin-form">
-        <button className="close-modal" onClick={onClose}>
-          ×
-        </button>
-        <p className="eyebrow">EDIT ROOM</p>
-        <RoomTitle name={room.name} as="h2" />
-        <label>
-          Location
-          <input
-            value={displayLabel}
-            onChange={(event) => setDisplayLabel(event.target.value)}
-            placeholder="Available to book"
-          />
-        </label>
-        {room.name.startsWith("Meeting Room ") && (
-          <label>
-            Room business phone <em>Optional for now</em>
-            <input
-              value={roomPhone}
-              onChange={(event) => setRoomPhone(event.target.value)}
-              placeholder="Internal extension"
-            />
-          </label>
-        )}
-        <p className="field-help">
-          Room business phones are stored separately from employee phone
-          numbers.
-        </p>
-        <label>
-          Status
-          <select
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-          >
-            <option value="available">Available</option>
-            <option value="unavailable">Unavailable</option>
-          </select>
-        </label>
-        {status === "unavailable" && (
-          <label>
-            Reason <em>Optional</em>
-            <input
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-              placeholder="For example: Room is under repair"
-            />
-          </label>
-        )}
-        <label>
-          Who can reserve?
-          <select
-            value={access}
-            onChange={(event) => setAccess(event.target.value)}
-          >
-            <option value="all">All workers</option>
-            <option value="employee">Selected employee</option>
-            <option value="department">IT Office</option>
-          </select>
-        </label>
-        {access === "employee" && (
-          <label>
-            Authorized employee
-            <select
-              value={allowed}
-              onChange={(event) => setAllowed(event.target.value)}
-            >
-              {employees.map((employee) => (
-                <option key={employee.id} value={employee.id}>
-                  {employee.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        <label className="switch-line">
-          <input
-            type="checkbox"
-            checked={active}
-            onChange={(event) => setActive(event.target.checked)}
-          />
-          <span>Show this room in the calendar</span>
-        </label>
-        <button
-          className="reserve-button"
-          onClick={() =>
-            onSave({
-              id: room.id,
-              location: room.location,
-              displayLabel,
-              roomPhone,
-              status,
-              reason,
-              access,
-              allowedEmployeeId: access === "employee" ? allowed : null,
-              active,
-            })
-          }
-        >
-          Save changes
-        </button>
-      </section>
-    </div>
-  );
-}
-
-function AddRoom({
-  onClose,
-  onSave,
-}: {
-  onClose: () => void;
-  onSave: (values: {
-    name: string;
-    location: string;
-    displayLabel: string;
-    roomPhone: string;
-  }) => Promise<void>;
-}) {
-  const [name, setName] = useState("");
-  const [displayLabel, setDisplayLabel] = useState("Available to book");
-  const [roomPhone, setRoomPhone] = useState("");
-  return (
-    <div className="modal-backdrop">
-      <section className="modal admin-form">
-        <button className="close-modal" onClick={onClose}>
-          ×
-        </button>
-        <p className="eyebrow">NEW ROOM</p>
-        <h2>Add room</h2>
-        <p className="form-intro">
-          Add the room’s basic information. Access permissions can be changed
-          after creation.
-        </p>
-        <label>
-          Room name
-          <input
-            autoFocus
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="For example: Meeting Room 9"
-          />
-        </label>
-        <label>
-          Location
-          <input
-            value={displayLabel}
-            onChange={(event) => setDisplayLabel(event.target.value)}
-            placeholder="Available to book"
-          />
-        </label>
-        {name.trim().startsWith("Meeting Room ") && (
-          <label>
-            Room business phone <em>Optional for now</em>
-            <input
-              value={roomPhone}
-              onChange={(event) => setRoomPhone(event.target.value)}
-              placeholder="Internal extension"
-            />
-          </label>
-        )}
-        <p className="field-help">
-          Room business phones are kept separate from employee phone numbers.
-        </p>
-        <button
-          disabled={!name.trim() || !displayLabel.trim()}
-          className="reserve-button"
-          onClick={() =>
-            onSave({
-              name: name.trim(),
-              location: "Main Office",
-              displayLabel: displayLabel.trim(),
-              roomPhone: roomPhone.trim(),
-            })
-          }
-        >
-          Add room
-        </button>
-      </section>
-    </div>
-  );
-}

@@ -1,4 +1,6 @@
 import { env } from "cloudflare:workers";
+import { canCancelBooking, canReserveRoom } from "../../lib/authorization";
+import { readSessionUser } from "../../lib/session";
 
 const employeeSeeds = [
   [
@@ -11,7 +13,7 @@ const employeeSeeds = [
     "aysu@example.com",
     "Demo Company",
     "aysu",
-    "Product",
+    "Business",
     "employee",
   ],
   [
@@ -63,7 +65,7 @@ const employeeSeeds = [
     "ethan@example.com",
     "Demo Company",
     "ethan.brooks",
-    "Digital Products",
+    "Digital Banking",
     "employee",
   ],
   [
@@ -194,9 +196,21 @@ export async function GET() {
   });
 }
 
+async function authenticatedEmployee(request: Request) {
+  const userId = readSessionUser(request);
+  if (!userId) return null;
+  return env.DB.prepare("SELECT * FROM employees WHERE id=?")
+    .bind(userId)
+    .first<Record<string, unknown>>();
+}
+
 export async function POST(request: Request) {
   await ensureDatabase();
   const body = (await request.json()) as Record<string, unknown>;
+  const actor = await authenticatedEmployee(request);
+  if (!actor)
+    return Response.json({ error: "Please sign in again." }, { status: 401 });
+
   if (body.action === "book") {
     const room = await env.DB.prepare(
       "SELECT * FROM rooms WHERE id=? AND active=1",
@@ -208,15 +222,20 @@ export async function POST(request: Request) {
         { error: "This room is unavailable." },
         { status: 409 },
       );
-    const actor = await env.DB.prepare("SELECT * FROM employees WHERE id=?")
-      .bind(body.createdBy)
-      .first<Record<string, unknown>>();
-    const allowed =
-      (actor?.role === "admin" && room.name !== "Meeting Room 8") ||
-      room.access === "all" ||
-      (room.access === "employee" &&
-        room.allowed_employee_id === body.createdBy) ||
-      (room.access === "department" && actor?.department === "IT Office");
+    const allowed = canReserveRoom(
+      {
+        id: String(actor.id),
+        department: String(actor.department),
+        role: String(actor.role),
+      },
+      {
+        name: String(room.name),
+        access: String(room.access),
+        allowed_employee_id: room.allowed_employee_id
+          ? String(room.allowed_employee_id)
+          : null,
+      },
+    );
     if (!allowed)
       return Response.json(
         { error: "You do not have access to this room." },
@@ -231,7 +250,7 @@ export async function POST(request: Request) {
         body.start,
         body.end,
         body.employeeId,
-        body.createdBy,
+        actor.id,
         body.roomId,
         body.date,
         body.start,
@@ -252,19 +271,32 @@ export async function POST(request: Request) {
         start: Number(body.start),
         end: Number(body.end),
         employee_id: String(body.employeeId),
-        created_by: String(body.createdBy),
+        created_by: String(actor.id),
       },
     });
   }
   if (body.action === "cancel") {
-    await env.DB.prepare(
-      "DELETE FROM bookings WHERE id=? AND (created_by=? OR ?='admin')",
+    const booking = await env.DB.prepare(
+      "SELECT created_by FROM bookings WHERE id=?",
     )
-      .bind(body.id, body.userId, body.role)
-      .run();
+      .bind(body.id)
+      .first<{ created_by: string }>();
+    if (
+      !booking ||
+      !canCancelBooking(
+        { id: String(actor.id), role: String(actor.role) },
+        booking.created_by,
+      )
+    ) {
+      return Response.json(
+        { error: "You cannot cancel this reservation." },
+        { status: 403 },
+      );
+    }
+    await env.DB.prepare("DELETE FROM bookings WHERE id=?").bind(body.id).run();
     return Response.json({ ok: true });
   }
-  if (body.action === "room" && body.role === "admin") {
+  if (body.action === "room" && actor.role === "admin") {
     if (body.id) {
       await env.DB.prepare(
         "UPDATE rooms SET location=?, display_label=?, room_phone=?, status=?, reason=?, access=?, allowed_employee_id=?, active=? WHERE id=?",
@@ -305,3 +337,4 @@ export async function POST(request: Request) {
   }
   return Response.json({ error: "Invalid action." }, { status: 400 });
 }
+
