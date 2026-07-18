@@ -95,7 +95,7 @@ export function RoomEditor({
   return (
     <div className="modal-backdrop">
       <section className="modal admin-form">
-        <button className="close-modal" onClick={onClose}>
+        <button className="close-modal" aria-label="Close room editor" onClick={onClose}>
           ×
         </button>
         <p className="eyebrow">EDIT ROOM</p>
@@ -217,7 +217,7 @@ export function AddRoom({
   return (
     <div className="modal-backdrop">
       <section className="modal admin-form">
-        <button className="close-modal" onClick={onClose}>
+        <button className="close-modal" aria-label="Close add-room form" onClick={onClose}>
           ×
         </button>
         <p className="eyebrow">NEW ROOM</p>

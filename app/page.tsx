@@ -593,14 +593,17 @@ export default function Home() {
           <button
             className="profile"
             onClick={() => setProfileMenu(!profileMenu)}
+            aria-expanded={profileMenu}
+            aria-haspopup="menu"
           >
             <strong>{currentUser.name}</strong>
             <span>{initials(currentUser.name)}</span>
             <b>⌄</b>
           </button>
           {profileMenu && (
-            <div className="profile-menu">
+            <div className="profile-menu" role="menu">
               <button
+                role="menuitem"
                 onClick={() => {
                   setSelectedEmployee(currentUser);
                   setProfileMenu(false);
@@ -608,8 +611,9 @@ export default function Home() {
               >
                 My profile
               </button>
-              <hr />
+              <hr role="separator" />
               <button
+                role="menuitem"
                 onClick={() => {
                   setDemoLogin(true);
                   setProfileMenu(false);
@@ -617,7 +621,7 @@ export default function Home() {
               >
                 Switch demo account
               </button>
-              <button className="logout" onClick={logOut}>
+              <button className="logout" role="menuitem" onClick={logOut}>
                 Log out
               </button>
             </div>
@@ -852,8 +856,9 @@ export default function Home() {
           }
         >
           <section className="modal" role="dialog" aria-modal="true">
-            <button
-              className="close-modal"
+              <button
+                className="close-modal"
+                aria-label="Close reservation form"
               onClick={() => setSelectedSlot(null)}
             >
               ×
@@ -949,7 +954,7 @@ function EmployeeCard({
       onMouseDown={(event) => event.target === event.currentTarget && onClose()}
     >
       <section className="modal profile-card">
-        <button className="close-modal" onClick={onClose}>
+        <button className="close-modal" aria-label="Close profile" onClick={onClose}>
           ×
         </button>
         <div className="large-avatar">{initials(employee.name)}</div>
@@ -1000,7 +1005,7 @@ function DemoLogin({
   return (
     <div className="modal-backdrop">
       <section className="modal demo-login">
-        <button className="close-modal" onClick={onClose}>
+        <button className="close-modal" aria-label="Close account switcher" onClick={onClose}>
           ×
         </button>
         <span className="brand-mark">U</span>
@@ -1032,4 +1037,3 @@ function DemoLogin({
     </div>
   );
 }
-

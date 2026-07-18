@@ -10,6 +10,10 @@ I am building this project step by step as a CTIS student at Bilkent University.
 GitHub: [@aysumehdiyeva](https://github.com/aysumehdiyeva)  
 CTIS student at Bilkent University
 
+## Interface Preview
+
+![UniBook work-week room reservation calendar](public/unibook-calendar.png)
+
 ## Current Features
 
 - Work-week calendar from 09:00 to 18:00
@@ -92,11 +96,10 @@ npm run build
 - [x] Add the prototype login and logout experience
 - [ ] Connect Microsoft Entra ID authentication with IT approval
 - [ ] Import the approved employee directory securely
-- [ ] Add server-side role and permission enforcement
-- [ ] Add automated tests for booking conflicts and access rules
+- [x] Add server-side role and permission enforcement
+- [x] Add automated tests for booking conflicts and access rules
 - [ ] Complete security and accessibility reviews
 
 ## Project Status
 
 Active student project. The interface and reservation workflow are being improved step by step. This repository is a portfolio-safe demonstration and is not an official Unibank production system.
-
