@@ -8,7 +8,6 @@ type Employee = {
   email: string;
   company: string;
   alias: string;
-  description: string;
   role: string;
 };
 
