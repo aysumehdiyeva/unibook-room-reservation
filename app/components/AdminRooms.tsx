@@ -27,11 +27,13 @@ export function AdminPanel({
   rooms,
   employees,
   onEdit,
+  onRemove,
   onAdd,
 }: {
   rooms: Room[];
   employees: Employee[];
   onEdit: (room: Room) => void;
+  onRemove: (room: Room) => void;
   onAdd: () => void;
 }) {
   return (
@@ -47,28 +49,35 @@ export function AdminPanel({
         </button>
       </div>
       <div className="admin-list">
-        {rooms.map((room) => (
-          <div
-            className={`admin-room ${!room.active ? "inactive-room" : ""}`}
-            key={room.id}
-          >
-            <div>
-              <RoomTitle name={room.name} />
-              <span>
-                {!room.active
-                  ? "Removed from calendar"
-                  : room.status === "unavailable"
+        {rooms
+          .filter((room) => Boolean(room.active))
+          .map((room) => (
+            <div className="admin-room" key={room.id}>
+              <div>
+                <RoomTitle name={room.name} />
+                <span>
+                  {room.status === "unavailable"
                     ? `Unavailable${room.reason ? ` · ${room.reason}` : ""}`
                     : room.access === "employee"
                       ? `Restricted · ${employees.find((employee) => employee.id === room.allowed_employee_id)?.name ?? "Selected employee"}`
                       : room.access === "department"
                         ? "Restricted · IT Office"
                         : "Available · All workers"}
-              </span>
+                </span>
+              </div>
+              <div className="admin-room-actions">
+                <button onClick={() => onEdit(room)}>Edit</button>
+                <button
+                  className="remove-room-button"
+                  aria-label={`Remove ${room.name}`}
+                  title="Remove room"
+                  onClick={() => onRemove(room)}
+                >
+                  <span className="trash-icon" aria-hidden="true" />
+                </button>
+              </div>
             </div>
-            <button onClick={() => onEdit(room)}>Edit</button>
-          </div>
-        ))}
+          ))}
       </div>
     </section>
   );
@@ -95,7 +104,11 @@ export function RoomEditor({
   return (
     <div className="modal-backdrop">
       <section className="modal admin-form">
-        <button className="close-modal" aria-label="Close room editor" onClick={onClose}>
+        <button
+          className="close-modal"
+          aria-label="Close room editor"
+          onClick={onClose}
+        >
           ×
         </button>
         <p className="eyebrow">EDIT ROOM</p>
@@ -217,7 +230,11 @@ export function AddRoom({
   return (
     <div className="modal-backdrop">
       <section className="modal admin-form">
-        <button className="close-modal" aria-label="Close add-room form" onClick={onClose}>
+        <button
+          className="close-modal"
+          aria-label="Close add-room form"
+          onClick={onClose}
+        >
           ×
         </button>
         <p className="eyebrow">NEW ROOM</p>

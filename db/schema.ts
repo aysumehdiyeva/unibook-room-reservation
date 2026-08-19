@@ -1,4 +1,10 @@
-import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  integer,
+  primaryKey,
+  real,
+  sqliteTable,
+  text,
+} from "drizzle-orm/sqlite-core";
 
 export const employees = sqliteTable("employees", {
   id: text("id").primaryKey(),
@@ -6,7 +12,6 @@ export const employees = sqliteTable("employees", {
   title: text("title").notNull(),
   phone: text("phone").notNull(),
   location: text("location").notNull().default("IT Office"),
-  description: text("description").notNull().default(""),
   email: text("email").notNull().unique(),
   company: text("company").notNull(),
   alias: text("alias").notNull(),
@@ -35,4 +40,20 @@ export const bookings = sqliteTable("bookings", {
   end: real("end").notNull(),
   employeeId: text("employee_id").notNull(),
   createdBy: text("created_by").notNull(),
+  guestVisit: integer("guest_visit", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  guestMessage: text("guest_message"),
+  notificationStatus: text("notification_status")
+    .notNull()
+    .default("not_required"),
 });
+
+export const bookingRecipients = sqliteTable(
+  "booking_recipients",
+  {
+    bookingId: integer("booking_id").notNull(),
+    employeeId: text("employee_id").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.bookingId, table.employeeId] })],
+);

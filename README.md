@@ -10,22 +10,23 @@ I am building this project step by step as a CTIS student at Bilkent University.
 GitHub: [@aysumehdiyeva](https://github.com/aysumehdiyeva)  
 CTIS student at Bilkent University
 
-## Interface Preview
-
-![UniBook work-week room reservation calendar](public/unibook-calendar.png)
-
 ## Current Features
 
-- Work-week calendar from 09:00 to 18:00
+- Monday-to-Saturday calendar from 09:00 to 18:00
 - Clear available, reserved, restricted, and unavailable room states
 - Collision prevention for overlapping bookings
 - Personal reservation view
 - Employee address book and profile details
 - Different room access rules for employees, departments, and administrators
+- IT Office employees can reserve only rooms assigned to the IT Office
+- Meeting Room 8 remains exclusive to its assigned executive assistant
 - Room closure reasons, such as maintenance or repair
 - Admin controls for adding, editing, hiding, and reopening rooms
+- Direct administrator Remove action that hides a room everywhere while preserving bookings
 - Responsive layout for desktop and smaller screens
 - Prototype login and logout flow
+- Optional guest-visit details and a demo notification prepared for Shahla
+- Searchable multi-worker meeting-information sharing
 
 ## Latest Milestone: Secure Prototype Sessions
 
@@ -38,6 +39,14 @@ CTIS student at Bilkent University
 ## Authentication Plan
 
 The current login screen is a prototype account selector for demonstrating user roles and room permissions. A production deployment should use the organization’s Microsoft Entra ID work accounts. Authentication and authorization must be verified on the server before the system is used with real employee data.
+
+## Guest Notification Demo
+
+Workers can mark a reservation as a guest visit and add an optional reception message for Shahla. The demo stores the message and marks the notification as ready. Actual email delivery will be connected only after the IT Office provides the approved recipient address and mail service.
+
+## Worker Notification Demo
+
+Workers can search the employee directory, choose more than one coworker, and attach those recipients to a reservation. UniBook saves recipient IDs separately from guest information, so the feature can use the approved real employee directory later. The prototype prepares the notification data; actual email delivery still requires the IT Office's approved mail service.
 
 ## Privacy
 

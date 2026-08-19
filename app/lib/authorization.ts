@@ -25,6 +25,7 @@ export function canReserveRoom(actor: AccessActor, room: AccessRoom) {
   }
 
   if (actor.role === "admin") return true;
+  if (actor.department === "IT Office") return room.access === "department";
   if (room.access === "all") return true;
   if (room.access === "employee") return room.allowed_employee_id === actor.id;
   return room.access === "department" && actor.department === "IT Office";
