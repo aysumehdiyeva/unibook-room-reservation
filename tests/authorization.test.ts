@@ -29,6 +29,7 @@ test("enforces all-worker and IT Office room access", () => {
   };
   assert.equal(canReserveRoom(employee, openRoom), true);
   assert.equal(canReserveRoom(employee, itRoom), false);
+  assert.equal(canReserveRoom(itEmployee, openRoom), false);
   assert.equal(canReserveRoom(itEmployee, itRoom), true);
   assert.equal(canReserveRoom(admin, itRoom), true);
 });

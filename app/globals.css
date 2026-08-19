@@ -190,9 +190,170 @@ h1 {
   font-size: 13px;
   font-weight: 700;
 }
+.date-navigator {
+  position: relative;
+}
+.week-controls .date-range-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  min-width: 220px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+.calendar-outline-icon {
+  position: relative;
+  flex: 0 0 17px;
+  width: 17px;
+  height: 16px;
+  border: 1.8px solid var(--orange);
+  border-radius: 4px;
+}
+.calendar-outline-icon::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  right: -1.8px;
+  left: -1.8px;
+  border-top: 1.8px solid var(--orange);
+}
+.calendar-outline-icon::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: 3px;
+  width: 7px;
+  height: 4px;
+  border-right: 1.8px solid var(--orange);
+  border-left: 1.8px solid var(--orange);
+}
+.date-range-button > strong {
+  flex: 1;
+  white-space: nowrap;
+}
+.dropdown-chevron {
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid #746f6a;
+  border-bottom: 1.5px solid #746f6a;
+  transform: rotate(45deg) translateY(-2px);
+  transform-origin: center;
+  pointer-events: none;
+}
+.date-range-button > .dropdown-chevron {
+  flex: 0 0 7px;
+  margin: 0 3px 2px 6px;
+}
+.date-picker {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  left: 50%;
+  width: 300px;
+  padding: 14px;
+  transform: translateX(-50%);
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: white;
+  box-shadow: 0 18px 50px rgba(43, 34, 27, 0.18);
+}
+.date-picker-header {
+  display: grid;
+  grid-template-columns: 32px 1fr 32px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.month-year-selectors {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.9fr);
+  gap: 5px;
+}
+.select-shell {
+  position: relative;
+  min-width: 0;
+}
+.select-shell > .dropdown-chevron {
+  position: absolute;
+  top: 50%;
+  right: 11px;
+  margin-top: -5px;
+}
+.month-year-selectors select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 0 27px 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  outline: 0;
+  background: white;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 750;
+}
+.month-year-selectors select:focus {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 2px rgba(244, 91, 32, 0.1);
+}
+.week-controls .date-picker-header button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: #f6f3f0;
+  font-size: 18px;
+}
+.date-picker-weekdays,
+.date-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+.date-picker-weekdays span {
+  padding: 5px 0;
+  color: var(--muted);
+  text-align: center;
+  font-size: 9px;
+  font-weight: 800;
+}
+.week-controls .date-picker-grid button {
+  width: 36px;
+  height: 34px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+}
+.week-controls .date-picker-grid button:hover:not(:disabled) {
+  background: #fff0e8;
+  color: #a73b16;
+}
+.week-controls .date-picker-grid button.selected-date {
+  background: var(--orange);
+  color: white;
+}
+.week-controls .date-picker-grid button:disabled {
+  color: #d2ceca;
+  cursor: not-allowed;
+}
+.week-controls .close-date-picker {
+  width: 100%;
+  height: 32px;
+  margin-top: 9px;
+  border: 0;
+  background: #f7f4f1;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
 .day-tabs {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 8px;
   margin: 34px 0 18px;
   padding: 6px;
@@ -235,11 +396,6 @@ h1 {
   display: flex;
   align-items: center;
   gap: 7px;
-}
-.status-row p {
-  margin: 0 0 0 auto;
-  font-weight: 700;
-  color: var(--ink);
 }
 .dot {
   width: 9px;
@@ -349,6 +505,12 @@ h1 {
 .slots > button:hover {
   background: #eaf7f0;
 }
+.slots.view-only > button.empty-slot {
+  cursor: default;
+}
+.slots.view-only > button.empty-slot:hover {
+  background: transparent;
+}
 .slots > button.booking {
   position: absolute;
   top: 14px;
@@ -449,6 +611,8 @@ h1 {
 .modal {
   position: relative;
   width: min(440px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
   padding: 32px;
   background: white;
   border-radius: 20px;
@@ -543,6 +707,238 @@ h1 {
 .reserve-button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+.guest-option {
+  margin: 4px 0 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fbfaf9;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
+}
+.guest-option.selected {
+  border-color: #f4a17d;
+  background: #fff6f1;
+}
+.guest-toggle {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 11px;
+  margin: 0 !important;
+  cursor: pointer;
+}
+.guest-toggle input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--orange);
+}
+.guest-toggle span,
+.guest-toggle strong,
+.guest-toggle small {
+  display: block;
+}
+.guest-toggle strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+.guest-toggle small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+.guest-details {
+  margin: 14px -2px 0 29px;
+  padding-top: 14px;
+  border-top: 1px solid #f2c9b7;
+}
+.guest-details textarea {
+  width: 100%;
+  margin-top: 7px;
+  padding: 11px 12px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.45;
+}
+.guest-details textarea:focus {
+  border-color: var(--orange);
+  outline: 3px solid rgba(242, 93, 35, 0.12);
+}
+.guest-details p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.guest-booking-note {
+  display: block;
+  margin-top: 5px;
+  color: #a43b16;
+  font-size: 11px;
+  font-weight: 700;
+}
+.recipient-booking-note {
+  display: block;
+  margin-top: 5px;
+  color: #5e5368;
+  font-size: 11px;
+  font-weight: 700;
+}
+.recipient-option {
+  position: relative;
+  margin: 4px 0 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fbfaf9;
+}
+.recipient-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.recipient-heading span,
+.recipient-heading strong,
+.recipient-heading small {
+  display: block;
+}
+.recipient-heading strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+.recipient-heading small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+.recipient-heading > b {
+  flex: none;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #fff0e9;
+  color: #bf4318;
+  font-size: 10px;
+}
+.recipient-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+.recipient-chips button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px 5px 5px;
+  border: 1px solid #f0c6b5;
+  border-radius: 999px;
+  background: #fff7f3;
+  color: #5c3121;
+  font-size: 11px;
+  font-weight: 700;
+}
+.recipient-chips button > span,
+.recipient-avatar {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ffe1d4;
+  color: #bd3f13;
+  font-size: 9px;
+  font-weight: 800;
+}
+.recipient-chips button > b {
+  color: #a97462;
+  font-size: 15px;
+}
+.recipient-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: white;
+  color: var(--muted);
+}
+.recipient-search:focus-within {
+  border-color: var(--orange);
+  outline: 3px solid rgba(242, 93, 35, 0.1);
+}
+.recipient-search input {
+  width: 100%;
+  padding: 10px 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
+.recipient-results {
+  position: absolute;
+  z-index: 12;
+  right: 14px;
+  left: 14px;
+  margin-top: 5px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 14px 32px rgba(48, 37, 29, 0.16);
+}
+.recipient-results button {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 11px;
+  border: 0;
+  border-bottom: 1px solid #f1eeea;
+  background: white;
+  color: var(--ink);
+  text-align: left;
+}
+.recipient-results button:last-child {
+  border-bottom: 0;
+}
+.recipient-results button:hover {
+  background: #fff8f4;
+}
+.recipient-results button > span:nth-child(2) strong,
+.recipient-results button > span:nth-child(2) small {
+  display: block;
+}
+.recipient-results button > span:nth-child(2) strong {
+  font-size: 12px;
+}
+.recipient-results button > span:nth-child(2) small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.recipient-results button > b {
+  color: var(--orange);
+  font-size: 17px;
+}
+.recipient-option > p {
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
 }
 .error-banner {
   display: flex;
@@ -687,41 +1083,115 @@ h1 {
   font-size: 13px;
   font-weight: 700;
 }
-.mine-list {
-  max-width: 700px;
-  margin: 28px 0 0;
+.reservation-details {
+  width: min(500px, 100%);
 }
-.mine-list h2 {
-  font-size: 18px;
+.reservation-details-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 16px;
+  border-radius: 13px;
+  background: #fff0e8;
+  color: var(--orange);
+  font-size: 21px;
+  font-weight: 900;
 }
-.mine-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px;
-  margin: 9px 0;
+.reservation-details .eyebrow {
+  margin-bottom: 7px;
+}
+.reservation-details h2 {
+  margin-bottom: 20px;
+}
+.reservation-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fbfaf9;
+}
+.reservation-detail-grid > div {
+  padding: 14px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.reservation-detail-grid > div:nth-child(2n) {
+  border-right: 0;
+}
+.reservation-detail-grid > div:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+.reservation-detail-grid span,
+.reservation-detail-grid strong,
+.reservation-detail-section > span {
+  display: block;
+}
+.reservation-detail-grid span,
+.reservation-detail-section > span {
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.reservation-detail-grid strong {
+  font-size: 12px;
+}
+.reservation-detail-section {
+  margin-top: 12px;
+  padding: 13px 14px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: white;
 }
-.mine-item strong,
-.mine-item span {
-  display: block;
+.reservation-recipient-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
-.mine-item span {
-  margin-top: 5px;
-  color: var(--muted);
+.reservation-recipient-list b {
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #fff0e8;
+  color: #9e3b18;
+  font-size: 10px;
+}
+.guest-detail-summary strong {
   font-size: 12px;
 }
-.mine-item button {
-  padding: 8px 12px;
-  border: 1px solid #efb4a2;
-  border-radius: 8px;
-  background: white;
-  color: #ad3b1c;
-}
-.empty {
+.guest-detail-summary p {
+  margin: 8px 0 0;
   color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.reservation-detail-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 9px;
+  margin-top: 20px;
+}
+.reservation-detail-actions button {
+  padding: 13px;
+  border-radius: 10px;
+  font-weight: 800;
+}
+.secondary-button {
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--ink);
+}
+.cancel-reservation-button {
+  border: 1px solid #e9a48f;
+  background: #fff7f4;
+  color: #aa3517;
+}
+.cancel-reservation-button:hover {
+  border-color: #d66f50;
+  background: #fff0eb;
 }
 .demo-login {
   max-height: 86vh;
@@ -955,16 +1425,57 @@ h1 {
   color: var(--muted);
   font-size: 12px;
 }
-.admin-room > button {
+.admin-room-actions {
+  display: flex;
+  gap: 8px;
+}
+.admin-room-actions button {
   padding: 8px 15px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: white;
   font-weight: 700;
 }
-.inactive-room {
-  opacity: 0.55;
-  background: #f4f2ef;
+.admin-room-actions .remove-room-button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 34px;
+  padding: 0;
+  border-color: #f0b6aa;
+  color: #b63219;
+  background: #fff7f5;
+}
+.admin-room-actions .remove-room-button:hover {
+  border-color: #d96a54;
+  background: #ffebe6;
+}
+.trash-icon {
+  position: relative;
+  width: 12px;
+  height: 13px;
+  border: 2px solid currentColor;
+  border-top: 0;
+  border-radius: 0 0 2px 2px;
+}
+.trash-icon::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: -3px;
+  width: 14px;
+  border-top: 2px solid currentColor;
+}
+.trash-icon::after {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 2px;
+  width: 5px;
+  height: 3px;
+  border: 2px solid currentColor;
+  border-bottom: 0;
+  border-radius: 2px 2px 0 0;
 }
 .switch-line {
   display: flex !important;
@@ -1037,17 +1548,24 @@ h1 {
   }
   .week-controls {
     width: 100%;
+    flex-wrap: wrap;
   }
-  .week-controls strong {
-    margin-right: auto;
-    font-size: 13px;
+  .date-navigator {
+    order: -1;
+    width: 100%;
+  }
+  .week-controls .date-range-button {
+    width: 100%;
+    min-width: 0;
+  }
+  .date-picker {
+    right: auto;
+    left: 0;
+    width: min(300px, calc(100vw - 36px));
+    transform: none;
   }
   .day-tabs {
     margin-top: 24px;
-  }
-  .status-row p {
-    width: 100%;
-    margin-left: 0;
   }
   .room-head,
   .room-label {

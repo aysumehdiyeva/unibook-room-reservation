@@ -9,7 +9,6 @@ const employeeSeeds = [
     "Student Developer",
     "1001",
     "Head Office",
-    "",
     "aysu@example.com",
     "Demo Company",
     "aysu",
@@ -18,40 +17,37 @@ const employeeSeeds = [
   ],
   [
     "assistant",
-    "Maya Collins",
+    "Parvana Salimova",
     "Executive Assistant",
     "1002",
     "Head Office",
-    "",
-    "maya@example.com",
+    "parvana.salimova@example.com",
     "Demo Company",
-    "maya.collins",
+    "parvana.salimova",
     "Executive Office",
     "employee",
   ],
   [
     "specialist",
-    "Noah Bennett",
-    "Senior Specialist",
+    "Lyaman Alizade",
+    "Human Resources Specialist",
     "1003",
-    "City Office",
-    "",
-    "noah@example.com",
+    "Head Office",
+    "lyaman.alizade@example.com",
     "Demo Company",
-    "noah.bennett",
-    "Operations",
+    "lyaman.alizade",
+    "Human Resources",
     "employee",
   ],
   [
     "it",
-    "Lina Carter",
+    "Jafar Mammadzada",
     "IT Specialist",
     "1004",
     "IT Office",
-    "",
-    "lina@example.com",
+    "jafar.mammadzada@example.com",
     "Demo Company",
-    "lina.carter",
+    "jafar.mammadzada",
     "IT Office",
     "employee",
   ],
@@ -61,7 +57,6 @@ const employeeSeeds = [
     "Product Owner",
     "1005",
     "Head Office",
-    "",
     "ethan@example.com",
     "Demo Company",
     "ethan.brooks",
@@ -70,45 +65,44 @@ const employeeSeeds = [
   ],
   [
     "lead",
-    "Sara Morgan",
-    "Team Lead",
+    "Ismayil Huseynzade",
+    "Risk Specialist",
     "1006",
-    "Regional Office",
-    "",
-    "sara@example.com",
+    "Head Office",
+    "ismayil.huseynzade@example.com",
     "Demo Company",
-    "sara.morgan",
+    "ismayil.huseynzade",
     "Risk",
     "employee",
   ],
   [
     "admin",
-    "Olivia Reed",
+    "Parvana Aghayeva",
     "Office Administrator",
     "1000",
     "Head Office",
-    "",
-    "olivia@example.com",
+    "parvana.aghayeva@example.com",
     "Demo Company",
-    "olivia.reed",
+    "parvana.aghayeva",
     "Administration",
     "admin",
   ],
 ];
 
 const roomSeeds = [
-  "Meeting Room 1",
-  "Meeting Room 3",
-  "Meeting Room 4",
-  "Meeting Room 5",
-  "Meeting Room 6",
-  "Meeting Room 8",
-  "Training Room",
-  "Planning Zone",
-  "Synergy Room",
-  "Vision Room",
-  "Agile Arena",
-  "Idea Space",
+  { name: "Meeting Room 1", phone: "" },
+  { name: "Meeting Room 3", phone: "3232" },
+  { name: "Meeting Room 4", phone: "" },
+  { name: "Meeting Room 5", phone: "2655" },
+  { name: "Meeting Room 6", phone: "" },
+  { name: "Meeting Room 8", phone: "2800" },
+  { name: "Meeting Room 9", phone: "2699" },
+  { name: "Training Room", phone: "" },
+  { name: "Planning Zone", phone: "" },
+  { name: "Synergy Room", phone: "" },
+  { name: "Vision Room", phone: "" },
+  { name: "Agile Arena", phone: "" },
+  { name: "Idea Space", phone: "" },
 ];
 
 let initialization: Promise<void> | null = null;
@@ -117,44 +111,92 @@ async function initializeDatabase() {
   const db = env.DB;
   await db.batch([
     db.prepare(
-      "CREATE TABLE IF NOT EXISTS employees (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, title TEXT NOT NULL, phone TEXT NOT NULL, location TEXT NOT NULL DEFAULT 'IT Office', description TEXT NOT NULL DEFAULT '', email TEXT NOT NULL UNIQUE, company TEXT NOT NULL, alias TEXT NOT NULL, department TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'employee')",
+      "CREATE TABLE IF NOT EXISTS employees (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, title TEXT NOT NULL, phone TEXT NOT NULL, location TEXT NOT NULL DEFAULT 'IT Office', email TEXT NOT NULL UNIQUE, company TEXT NOT NULL, alias TEXT NOT NULL, department TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'employee')",
     ),
     db.prepare(
       "CREATE TABLE IF NOT EXISTS rooms (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL UNIQUE, location TEXT NOT NULL DEFAULT 'Main Office', display_label TEXT NOT NULL DEFAULT 'Available to book', room_phone TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'available', reason TEXT, access TEXT NOT NULL DEFAULT 'all', allowed_employee_id TEXT, active INTEGER NOT NULL DEFAULT 1)",
     ),
     db.prepare(
-      "CREATE TABLE IF NOT EXISTS bookings (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, room_id INTEGER NOT NULL, date TEXT NOT NULL, start REAL NOT NULL, end REAL NOT NULL, employee_id TEXT NOT NULL, created_by TEXT NOT NULL)",
+      "CREATE TABLE IF NOT EXISTS bookings (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, room_id INTEGER NOT NULL, date TEXT NOT NULL, start REAL NOT NULL, end REAL NOT NULL, employee_id TEXT NOT NULL, created_by TEXT NOT NULL, guest_visit INTEGER NOT NULL DEFAULT 0, guest_message TEXT, notification_status TEXT NOT NULL DEFAULT 'not_required')",
     ),
     db.prepare(
       "CREATE INDEX IF NOT EXISTS bookings_room_date_idx ON bookings(room_id, date, start, end)",
     ),
+    db.prepare(
+      "CREATE TABLE IF NOT EXISTS booking_recipients (booking_id INTEGER NOT NULL, employee_id TEXT NOT NULL, PRIMARY KEY (booking_id, employee_id))",
+    ),
+    db.prepare(
+      "CREATE INDEX IF NOT EXISTS booking_recipients_booking_idx ON booking_recipients(booking_id)",
+    ),
   ]);
-  const employeeStatements = employeeSeeds.map((employee) =>
-    db
-      .prepare(
-        "INSERT OR IGNORE INTO employees (id,name,title,phone,location,description,email,company,alias,department,role) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-      )
-      .bind(...employee),
+  const bookingColumns = await db
+    .prepare("PRAGMA table_info(bookings)")
+    .all<{ name: string }>();
+  const columnNames = new Set(
+    bookingColumns.results.map((column) => String(column.name)),
   );
-  const roomStatements = roomSeeds.map((name) => {
-    const access =
-      name === "Meeting Room 8"
-        ? "employee"
-        : roomSeeds.indexOf(name) > 5
-          ? "department"
-          : "all";
-    const allowed = name === "Meeting Room 8" ? "assistant" : null;
-    return db
+  if (!columnNames.has("guest_visit")) {
+    await db
       .prepare(
-        "INSERT OR IGNORE INTO rooms (name,access,allowed_employee_id) VALUES (?,?,?)",
+        "ALTER TABLE bookings ADD COLUMN guest_visit INTEGER NOT NULL DEFAULT 0",
       )
-      .bind(name, access, allowed);
-  });
-  await db.batch([...employeeStatements, ...roomStatements]);
+      .run();
+  }
+  if (!columnNames.has("guest_message")) {
+    await db
+      .prepare("ALTER TABLE bookings ADD COLUMN guest_message TEXT")
+      .run();
+  }
+  if (!columnNames.has("notification_status")) {
+    await db
+      .prepare(
+        "ALTER TABLE bookings ADD COLUMN notification_status TEXT NOT NULL DEFAULT 'not_required'",
+      )
+      .run();
+  }
+  const employeeCount = await db
+    .prepare("SELECT COUNT(*) AS count FROM employees")
+    .first<{ count: number }>();
+  const roomCount = await db
+    .prepare("SELECT COUNT(*) AS count FROM rooms")
+    .first<{ count: number }>();
+
+  if (!employeeCount?.count) {
+    const employeeStatements = employeeSeeds.map((employee) =>
+      db
+        .prepare(
+          "INSERT INTO employees (id,name,title,phone,location,email,company,alias,department,role) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        )
+        .bind(...employee),
+    );
+    await db.batch(employeeStatements);
+  }
+
+  if (!roomCount?.count) {
+    const roomStatements = roomSeeds.map((room, index) => {
+      const access =
+        room.name === "Meeting Room 8"
+          ? "employee"
+          : index > 5
+            ? "department"
+            : "all";
+      const allowed = room.name === "Meeting Room 8" ? "assistant" : null;
+      const displayLabel =
+        access === "department" ? "IT Office" : "Available to book";
+      return db
+        .prepare(
+          "INSERT INTO rooms (name,display_label,room_phone,access,allowed_employee_id) VALUES (?,?,?,?,?)",
+        )
+        .bind(room.name, displayLabel, room.phone, access, allowed);
+    });
+    await db.batch(roomStatements);
+  }
+
   const count = await db
     .prepare("SELECT COUNT(*) AS count FROM bookings")
     .first<{ count: number }>();
-  if (!count?.count) {
+  const demoDataWasInserted = !employeeCount?.count && !roomCount?.count;
+  if (!count?.count && demoDataWasInserted) {
     await db.batch([
       db.prepare(
         "INSERT INTO bookings(room_id,date,start,end,employee_id,created_by) SELECT id,'2026-07-20',9.5,10.5,'product','product' FROM rooms WHERE name='Meeting Room 1'",
@@ -184,15 +226,28 @@ async function ensureDatabase() {
 
 export async function GET() {
   await ensureDatabase();
-  const [employees, rooms, bookings] = await Promise.all([
+  const [employees, rooms, bookings, recipients] = await Promise.all([
     env.DB.prepare("SELECT * FROM employees ORDER BY name").all(),
     env.DB.prepare("SELECT * FROM rooms ORDER BY id").all(),
     env.DB.prepare("SELECT * FROM bookings ORDER BY date,start").all(),
+    env.DB.prepare(
+      "SELECT booking_id, employee_id FROM booking_recipients ORDER BY booking_id, employee_id",
+    ).all<{ booking_id: number; employee_id: string }>(),
   ]);
+  const recipientIdsByBooking = new Map<number, string[]>();
+  for (const recipient of recipients.results) {
+    const bookingRecipients =
+      recipientIdsByBooking.get(recipient.booking_id) ?? [];
+    bookingRecipients.push(recipient.employee_id);
+    recipientIdsByBooking.set(recipient.booking_id, bookingRecipients);
+  }
   return Response.json({
     employees: employees.results,
     rooms: rooms.results,
-    bookings: bookings.results,
+    bookings: bookings.results.map((booking) => ({
+      ...booking,
+      recipient_ids: recipientIdsByBooking.get(Number(booking.id)) ?? [],
+    })),
   });
 }
 
@@ -212,6 +267,39 @@ export async function POST(request: Request) {
     return Response.json({ error: "Please sign in again." }, { status: 401 });
 
   if (body.action === "book") {
+    const guestVisit = body.guestVisit === true;
+    const guestMessage = guestVisit
+      ? String(body.guestMessage ?? "").trim()
+      : "";
+    if (guestMessage.length > 1000)
+      return Response.json(
+        { error: "The guest message must be 1,000 characters or fewer." },
+        { status: 400 },
+      );
+    const requestedRecipientIds = Array.isArray(body.recipientIds)
+      ? body.recipientIds.map(String)
+      : [];
+    const recipientIds = [...new Set(requestedRecipientIds)].filter(
+      (id) => id !== String(actor.id) && id !== String(body.employeeId),
+    );
+    if (recipientIds.length > 25)
+      return Response.json(
+        { error: "Choose no more than 25 meeting recipients." },
+        { status: 400 },
+      );
+    if (recipientIds.length) {
+      const employeePlaceholders = recipientIds.map(() => "?").join(",");
+      const validRecipients = await env.DB.prepare(
+        `SELECT id FROM employees WHERE id IN (${employeePlaceholders})`,
+      )
+        .bind(...recipientIds)
+        .all<{ id: string }>();
+      if (validRecipients.results.length !== recipientIds.length)
+        return Response.json(
+          { error: "One or more selected recipients are unavailable." },
+          { status: 400 },
+        );
+    }
     const room = await env.DB.prepare(
       "SELECT * FROM rooms WHERE id=? AND active=1",
     )
@@ -242,7 +330,7 @@ export async function POST(request: Request) {
         { status: 403 },
       );
     const result = await env.DB.prepare(
-      "INSERT INTO bookings(room_id,date,start,end,employee_id,created_by) SELECT ?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM bookings WHERE room_id=? AND date=? AND ? < end AND ? > start)",
+      "INSERT INTO bookings(room_id,date,start,end,employee_id,created_by,guest_visit,guest_message,notification_status) SELECT ?,?,?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM bookings WHERE room_id=? AND date=? AND ? < end AND ? > start)",
     )
       .bind(
         body.roomId,
@@ -251,6 +339,9 @@ export async function POST(request: Request) {
         body.end,
         body.employeeId,
         actor.id,
+        guestVisit ? 1 : 0,
+        guestMessage || null,
+        guestVisit ? "demo_ready" : "not_required",
         body.roomId,
         body.date,
         body.start,
@@ -262,16 +353,30 @@ export async function POST(request: Request) {
         { error: "This time is already reserved." },
         { status: 409 },
       );
+    const bookingId = Number(result.meta.last_row_id);
+    if (recipientIds.length) {
+      await env.DB.batch(
+        recipientIds.map((employeeId) =>
+          env.DB.prepare(
+            "INSERT INTO booking_recipients (booking_id, employee_id) VALUES (?, ?)",
+          ).bind(bookingId, employeeId),
+        ),
+      );
+    }
     return Response.json({
       ok: true,
       booking: {
-        id: Number(result.meta.last_row_id),
+        id: bookingId,
         room_id: Number(body.roomId),
         date: String(body.date),
         start: Number(body.start),
         end: Number(body.end),
         employee_id: String(body.employeeId),
         created_by: String(actor.id),
+        guest_visit: guestVisit ? 1 : 0,
+        guest_message: guestMessage || null,
+        notification_status: guestVisit ? "demo_ready" : "not_required",
+        recipient_ids: recipientIds,
       },
     });
   }
@@ -293,7 +398,25 @@ export async function POST(request: Request) {
         { status: 403 },
       );
     }
-    await env.DB.prepare("DELETE FROM bookings WHERE id=?").bind(body.id).run();
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM booking_recipients WHERE booking_id=?").bind(
+        body.id,
+      ),
+      env.DB.prepare("DELETE FROM bookings WHERE id=?").bind(body.id),
+    ]);
+    return Response.json({ ok: true });
+  }
+  if (body.action === "removeRoom") {
+    if (actor.role !== "admin")
+      return Response.json(
+        { error: "Only an administrator can remove rooms." },
+        { status: 403 },
+      );
+    const result = await env.DB.prepare("UPDATE rooms SET active=0 WHERE id=?")
+      .bind(body.id)
+      .run();
+    if (!result.meta.changes)
+      return Response.json({ error: "Room not found." }, { status: 404 });
     return Response.json({ ok: true });
   }
   if (body.action === "room" && actor.role === "admin") {
@@ -337,4 +460,3 @@ export async function POST(request: Request) {
   }
   return Response.json({ error: "Invalid action." }, { status: 400 });
 }
-

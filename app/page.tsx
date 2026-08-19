@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SignInScreen } from "./components/SignInScreen";
 import { AdminPanel, RoomEditor, AddRoom } from "./components/AdminRooms";
 import { AddressBook } from "./components/AddressBook";
@@ -11,7 +11,6 @@ type Employee = {
   title: string;
   phone: string;
   location: string;
-  description: string;
   email: string;
   company: string;
   alias: string;
@@ -38,6 +37,10 @@ type Booking = {
   end: number;
   employee_id: string;
   created_by: string;
+  guest_visit?: number;
+  guest_message?: string | null;
+  notification_status?: string;
+  recipient_ids?: string[];
 };
 type State = { employees: Employee[]; rooms: Room[]; bookings: Booking[] };
 type Page = "calendar" | "mine" | "address" | "admin";
@@ -49,7 +52,6 @@ const fallbackEmployees: Employee[] = [
     title: "Student Developer",
     phone: "1001",
     location: "Head Office",
-    description: "",
     email: "aysu@example.com",
     company: "Demo Company",
     alias: "aysu",
@@ -58,40 +60,37 @@ const fallbackEmployees: Employee[] = [
   },
   {
     id: "assistant",
-    name: "Maya Collins",
+    name: "Parvana Salimova",
     title: "Executive Assistant",
     phone: "1002",
     location: "Head Office",
-    description: "",
-    email: "maya@example.com",
+    email: "parvana.salimova@example.com",
     company: "Demo Company",
-    alias: "maya.collins",
+    alias: "parvana.salimova",
     department: "Executive Office",
     role: "employee",
   },
   {
     id: "specialist",
-    name: "Noah Bennett",
-    title: "Senior Specialist",
+    name: "Lyaman Alizade",
+    title: "Human Resources Specialist",
     phone: "1003",
-    location: "City Office",
-    description: "",
-    email: "noah@example.com",
+    location: "Head Office",
+    email: "lyaman.alizade@example.com",
     company: "Demo Company",
-    alias: "noah.bennett",
-    department: "Operations",
+    alias: "lyaman.alizade",
+    department: "Human Resources",
     role: "employee",
   },
   {
     id: "it",
-    name: "Lina Carter",
+    name: "Jafar Mammadzada",
     title: "IT Specialist",
     phone: "1004",
     location: "IT Office",
-    description: "",
-    email: "lina@example.com",
+    email: "jafar.mammadzada@example.com",
     company: "Demo Company",
-    alias: "lina.carter",
+    alias: "jafar.mammadzada",
     department: "IT Office",
     role: "employee",
   },
@@ -101,7 +100,6 @@ const fallbackEmployees: Employee[] = [
     title: "Product Owner",
     phone: "1005",
     location: "Head Office",
-    description: "",
     email: "ethan@example.com",
     company: "Demo Company",
     alias: "ethan.brooks",
@@ -110,27 +108,25 @@ const fallbackEmployees: Employee[] = [
   },
   {
     id: "lead",
-    name: "Sara Morgan",
-    title: "Team Lead",
+    name: "Ismayil Huseynzade",
+    title: "Risk Specialist",
     phone: "1006",
-    location: "Regional Office",
-    description: "",
-    email: "sara@example.com",
+    location: "Head Office",
+    email: "ismayil.huseynzade@example.com",
     company: "Demo Company",
-    alias: "sara.morgan",
+    alias: "ismayil.huseynzade",
     department: "Risk",
     role: "employee",
   },
   {
     id: "admin",
-    name: "Olivia Reed",
+    name: "Parvana Aghayeva",
     title: "Office Administrator",
     phone: "1000",
     location: "Head Office",
-    description: "",
-    email: "olivia@example.com",
+    email: "parvana.aghayeva@example.com",
     company: "Demo Company",
-    alias: "olivia.reed",
+    alias: "parvana.aghayeva",
     department: "Administration",
     role: "admin",
   },
@@ -142,6 +138,7 @@ const roomNames = [
   "Meeting Room 5",
   "Meeting Room 6",
   "Meeting Room 8",
+  "Meeting Room 9",
   "Training Room",
   "Planning Zone",
   "Synergy Room",
@@ -149,12 +146,18 @@ const roomNames = [
   "Agile Arena",
   "Idea Space",
 ];
+const roomPhones: Record<string, string> = {
+  "Meeting Room 3": "3232",
+  "Meeting Room 5": "2655",
+  "Meeting Room 8": "2800",
+  "Meeting Room 9": "2699",
+};
 const fallbackRooms: Room[] = roomNames.map((name, index) => ({
   id: index + 1,
   name,
   location: "Main Office",
   display_label: index > 5 ? "IT Office" : "Available to book",
-  room_phone: "",
+  room_phone: roomPhones[name] ?? "",
   status: name === "Meeting Room 5" ? "unavailable" : "available",
   reason: name === "Meeting Room 5" ? "Room is under repair" : null,
   access:
@@ -230,13 +233,14 @@ const RoomTitle = ({
   as?: "strong" | "h2";
 }) => <Tag>{name}</Tag>;
 const iso = (date: Date) => date.toISOString().slice(0, 10);
+const BASE_WEEK_START = new Date("2026-07-20T12:00:00");
 const weekStart = (offset: number) => {
-  const date = new Date("2026-07-20T12:00:00");
+  const date = new Date(BASE_WEEK_START);
   date.setDate(date.getDate() + offset * 7);
   return date;
 };
 const weekDays = (offset: number) =>
-  Array.from({ length: 5 }, (_, index) => {
+  Array.from({ length: 6 }, (_, index) => {
     const date = weekStart(offset);
     date.setDate(date.getDate() + index);
     return {
@@ -261,21 +265,31 @@ export default function Home() {
   const [sessionReady, setSessionReady] = useState(false);
   const [week, setWeek] = useState(0);
   const [day, setDay] = useState(0);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [pickerMonth, setPickerMonth] = useState(
+    new Date(2026, 6, 1, 12),
+  );
   const [profileMenu, setProfileMenu] = useState(false);
   const [demoLogin, setDemoLogin] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
     null,
   );
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<{
     room: Room;
     start: number;
   } | null>(null);
   const [end, setEnd] = useState(10);
   const [reservedFor, setReservedFor] = useState("aysu");
+  const [guestVisit, setGuestVisit] = useState(false);
+  const [guestMessage, setGuestMessage] = useState("");
+  const [recipientIds, setRecipientIds] = useState<string[]>([]);
+  const [recipientSearch, setRecipientSearch] = useState("");
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [adminRoom, setAdminRoom] = useState<Room | null>(null);
   const [addRoom, setAddRoom] = useState(false);
+  const optimisticId = useRef(-1);
 
   const currentUser =
     data.employees.find((employee) => employee.id === currentUserId) ??
@@ -283,6 +297,21 @@ export default function Home() {
   const days = weekDays(week);
   const selectedDate = days[day].iso;
   const isAdmin = currentUser?.role === "admin";
+
+  function goToDate(date: Date) {
+    const dayFromMonday = (date.getDay() + 6) % 7;
+    if (dayFromMonday > 5) return;
+    const monday = new Date(date);
+    monday.setDate(date.getDate() - dayFromMonday);
+    const weekOffset = Math.round(
+      (monday.getTime() - BASE_WEEK_START.getTime()) /
+        (7 * 24 * 60 * 60 * 1000),
+    );
+    setWeek(weekOffset);
+    setDay(dayFromMonday);
+    setPickerMonth(new Date(date.getFullYear(), date.getMonth(), 1, 12));
+    setDatePickerOpen(false);
+  }
 
   async function refresh() {
     try {
@@ -293,7 +322,12 @@ export default function Home() {
     }
   }
   useEffect(() => {
-    void refresh();
+    void fetch("/api/state", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((state: State | null) => state && setData(state))
+      .catch(() => {
+        /* keep the local visual fallback */
+      });
     void fetch("/api/session", { cache: "no-store" })
       .then((response) => response.json() as Promise<{ userId: string | null }>)
       .then(({ userId }) => {
@@ -317,24 +351,23 @@ export default function Home() {
         booking.employee_id === currentUser.id ||
         booking.created_by === currentUser.id),
   );
-  const filteredEmployees = data.employees.filter((employee) =>
-    `${employee.name} ${employee.title} ${employee.phone} ${employee.location} ${employee.department} ${employee.email} ${employee.company} ${employee.alias}`
-      .toLowerCase()
-      .includes(search.toLowerCase()),
-  );
-
   function hasAccess(room: Room) {
-    return (
-      room.access === "all" ||
-      (room.access === "employee" &&
-        room.allowed_employee_id === currentUser.id) ||
-      (room.access === "department" &&
-        currentUser.department === "IT Office") ||
-      (isAdmin && room.name !== "Meeting Room 8")
-    );
+    if (room.name === "Meeting Room 8")
+      return (
+        room.access === "employee" &&
+        room.allowed_employee_id === currentUser.id
+      );
+    if (isAdmin) return true;
+    if (currentUser.department === "IT Office")
+      return room.access === "department";
+    if (room.access === "all") return true;
+    if (room.access === "employee")
+      return room.allowed_employee_id === currentUser.id;
+    return false;
   }
 
   function chooseSlot(room: Room, start: number) {
+    if (page === "mine") return;
     if (room.status !== "available" || !hasAccess(room)) return;
     if (
       data.bookings.some(
@@ -349,6 +382,10 @@ export default function Home() {
     setSelectedSlot({ room, start });
     setEnd(Math.min(start + 1, 18));
     setReservedFor(currentUser.id);
+    setGuestVisit(false);
+    setGuestMessage("");
+    setRecipientIds([]);
+    setRecipientSearch("");
     setError("");
   }
 
@@ -374,15 +411,20 @@ export default function Home() {
       setError("Choose a valid end time.");
       return;
     }
-    const optimisticId = -Date.now();
+    const temporaryId = optimisticId.current;
+    optimisticId.current -= 1;
     const optimisticBooking: Booking = {
-      id: optimisticId,
+      id: temporaryId,
       room_id: selectedSlot.room.id,
       date: selectedDate,
       start: selectedSlot.start,
       end,
       employee_id: reservedFor,
       created_by: currentUser.id,
+      guest_visit: guestVisit ? 1 : 0,
+      guest_message: guestVisit ? guestMessage.trim() || null : null,
+      notification_status: guestVisit ? "demo_ready" : "not_required",
+      recipient_ids: recipientIds,
     };
     setData((current) => ({
       ...current,
@@ -399,6 +441,9 @@ export default function Home() {
           start: optimisticBooking.start,
           end: optimisticBooking.end,
           employeeId: optimisticBooking.employee_id,
+          guestVisit,
+          guestMessage: guestVisit ? guestMessage.trim() : "",
+          recipientIds,
         },
         false,
       );
@@ -406,14 +451,14 @@ export default function Home() {
         setData((current) => ({
           ...current,
           bookings: current.bookings.map((booking) =>
-            booking.id === optimisticId ? (result.booking as Booking) : booking,
+            booking.id === temporaryId ? (result.booking as Booking) : booking,
           ),
         }));
     } catch (caught) {
       setData((current) => ({
         ...current,
         bookings: current.bookings.filter(
-          (booking) => booking.id !== optimisticId,
+          (booking) => booking.id !== temporaryId,
         ),
       }));
       setError(
@@ -427,9 +472,21 @@ export default function Home() {
   async function cancelBooking(id: number) {
     try {
       await api({ action: "cancel", id });
+      setSelectedBooking(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to cancel.");
     }
+  }
+
+  function openBooking(booking: Booking, employee?: Employee) {
+    const belongsToCurrentUser =
+      booking.employee_id === currentUser.id ||
+      booking.created_by === currentUser.id;
+    if (belongsToCurrentUser) {
+      setSelectedBooking(booking);
+      return;
+    }
+    if (employee) setSelectedEmployee(employee);
   }
 
   async function switchUser(id: string) {
@@ -493,6 +550,30 @@ export default function Home() {
     }
   }
 
+  async function removeRoom(room: Room) {
+    const confirmed = window.confirm(
+      `Remove ${room.name} from the reservation calendar? Its booking history will be kept.`,
+    );
+    if (!confirmed) return;
+
+    setData((current) => ({
+      ...current,
+      rooms: current.rooms.map((currentRoom) =>
+        currentRoom.id === room.id
+          ? { ...currentRoom, active: 0 }
+          : currentRoom,
+      ),
+    }));
+    try {
+      await api({ action: "removeRoom", id: room.id }, false);
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : "Unable to remove room.",
+      );
+      await refresh();
+    }
+  }
+
   async function createRoom(values: {
     name: string;
     location: string;
@@ -538,7 +619,7 @@ export default function Home() {
   }
 
   const start = days[0];
-  const finish = days[4];
+  const finish = days[5];
   const weekLabel = `${start.date}–${finish.date} ${weekStart(week).toLocaleDateString("en-GB", { month: "long", year: "numeric" })}`;
 
   if (!sessionReady)
@@ -651,7 +732,40 @@ export default function Home() {
               >
                 ‹
               </button>
-              <strong>{weekLabel}</strong>
+              <div className="date-navigator">
+                <button
+                  className="date-range-button"
+                  onClick={() => {
+                    if (!datePickerOpen) {
+                      const currentDate = new Date(`${selectedDate}T12:00:00`);
+                      setPickerMonth(
+                        new Date(
+                          currentDate.getFullYear(),
+                          currentDate.getMonth(),
+                          1,
+                          12,
+                        ),
+                      );
+                    }
+                    setDatePickerOpen(!datePickerOpen);
+                  }}
+                  aria-expanded={datePickerOpen}
+                  aria-haspopup="dialog"
+                >
+                  <span className="calendar-outline-icon" aria-hidden="true" />
+                  <strong>{weekLabel}</strong>
+                  <span className="dropdown-chevron" aria-hidden="true" />
+                </button>
+                {datePickerOpen && (
+                  <DatePicker
+                    month={pickerMonth}
+                    selectedDate={selectedDate}
+                    onMonthChange={setPickerMonth}
+                    onSelect={goToDate}
+                    onClose={() => setDatePickerOpen(false)}
+                  />
+                )}
+              </div>
               <button
                 onClick={() => {
                   setWeek(week + 1);
@@ -664,15 +778,21 @@ export default function Home() {
               <button
                 className="today"
                 onClick={() => {
-                  setWeek(0);
-                  setDay(0);
+                  const today = new Date();
+                  today.setHours(12, 0, 0, 0);
+                  if (today.getDay() === 0) today.setDate(today.getDate() + 1);
+                  goToDate(today);
                 }}
               >
                 Today
               </button>
             </div>
           </div>
-          <div className="day-tabs" role="tablist" aria-label="Work week">
+          <div
+            className="day-tabs"
+            role="tablist"
+            aria-label="Monday to Saturday"
+          >
             {days.map((item, index) => (
               <button
                 key={item.iso}
@@ -699,7 +819,6 @@ export default function Home() {
               <span className="dot closed" />
               Unavailable
             </div>
-            <p>{days[day].label} · 09:00–18:00</p>
           </div>
           {error && (
             <div className="error-banner">
@@ -734,26 +853,34 @@ export default function Home() {
                       >
                         <RoomTitle name={room.name} />
                         <small>
-                          {room.name.startsWith("Meeting Room ")
-                            ? `Business phone: ${room.room_phone || "—"}`
-                            : room.status !== "available"
-                              ? room.reason || "Unavailable"
-                              : room.display_label ||
-                                (room.access === "department"
-                                  ? "IT Office"
-                                  : !access
-                                    ? "Restricted access"
-                                    : "Available to book")}
+                          {!access
+                            ? "Restricted Room"
+                            : room.name.startsWith("Meeting Room ")
+                              ? `Business phone: ${room.room_phone || "—"}`
+                              : room.status !== "available"
+                                ? room.reason || "Unavailable"
+                                : room.display_label ||
+                                  (room.access === "department"
+                                    ? "IT Office"
+                                    : !access
+                                      ? "Restricted access"
+                                      : "Available to book")}
                         </small>
                       </div>
                       <div
-                        className={`slots ${room.status !== "available" ? "is-closed" : ""} ${!access ? "is-restricted" : ""} ${room.access === "employee" && !access ? "ceo-restricted" : ""}`}
+                        className={`slots ${page === "mine" ? "view-only" : ""} ${room.status !== "available" ? "is-closed" : ""} ${!access ? "is-restricted" : ""} ${room.access === "employee" && !access ? "ceo-restricted" : ""}`}
                       >
                         {times.slice(0, -1).map((time) => (
                           <button
+                            className="empty-slot"
                             key={time}
                             onClick={() => chooseSlot(room, time)}
-                            aria-label={`${room.name}, ${formatTime(time)}`}
+                            disabled={page === "mine"}
+                            aria-label={
+                              page === "mine"
+                                ? `${room.name}, ${formatTime(time)}, view only`
+                                : `${room.name}, ${formatTime(time)}`
+                            }
                           />
                         ))}
                         {room.status !== "available" && (
@@ -781,9 +908,7 @@ export default function Home() {
                                   left: `${((booking.start - 9) / 9) * 100}%`,
                                   width: `${((booking.end - booking.start) / 9) * 100}%`,
                                 }}
-                                onClick={() =>
-                                  employee && setSelectedEmployee(employee)
-                                }
+                                onClick={() => openBooking(booking, employee)}
                               >
                                 <strong>{employee?.name ?? "Employee"}</strong>
                                 <span>
@@ -799,34 +924,6 @@ export default function Home() {
                 })}
             </div>
           </div>
-          {page === "mine" && (
-            <div className="mine-list">
-              <h2>Reservations on {days[day].label}</h2>
-              {visibleBookings.length === 0 ? (
-                <p className="empty">No reservations for this day.</p>
-              ) : (
-                visibleBookings.map((booking) => (
-                  <div className="mine-item" key={booking.id}>
-                    <div>
-                      <strong>
-                        {
-                          data.rooms.find((room) => room.id === booking.room_id)
-                            ?.name
-                        }
-                      </strong>
-                      <span>
-                        {formatTime(booking.start)}–{formatTime(booking.end)} ·
-                        For {employeeMap.get(booking.employee_id)?.name}
-                      </span>
-                    </div>
-                    <button onClick={() => cancelBooking(booking.id)}>
-                      Cancel
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
         </section>
       )}
 
@@ -844,6 +941,7 @@ export default function Home() {
           rooms={data.rooms}
           employees={data.employees}
           onEdit={setAdminRoom}
+          onRemove={removeRoom}
           onAdd={() => setAddRoom(true)}
         />
       )}
@@ -856,9 +954,9 @@ export default function Home() {
           }
         >
           <section className="modal" role="dialog" aria-modal="true">
-              <button
-                className="close-modal"
-                aria-label="Close reservation form"
+            <button
+              className="close-modal"
+              aria-label="Close reservation form"
               onClick={() => setSelectedSlot(null)}
             >
               ×
@@ -904,6 +1002,122 @@ export default function Home() {
                 ))}
               </select>
             </label>
+            <div className={`guest-option ${guestVisit ? "selected" : ""}`}>
+              <label className="guest-toggle">
+                <input
+                  type="checkbox"
+                  checked={guestVisit}
+                  onChange={(event) => setGuestVisit(event.target.checked)}
+                />
+                <span>
+                  <strong>A guest will attend this meeting</strong>
+                  <small>Notify Sharafat Aliyeva about the guest visit</small>
+                </span>
+              </label>
+              {guestVisit && (
+                <div className="guest-details">
+                  <label>
+                    Message for Sharafat Aliyeva <em>Optional</em>
+                    <textarea
+                      value={guestMessage}
+                      maxLength={1000}
+                      rows={4}
+                      placeholder="Add the guest's name, company, and any reception instructions."
+                      onChange={(event) => setGuestMessage(event.target.value)}
+                    />
+                  </label>
+                  <p>
+                    UniBook will include the room, date, time, organizer, and
+                    this message in the email to Sharafat Aliyeva.
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="recipient-option">
+              <div className="recipient-heading">
+                <span>
+                  <strong>Share meeting information</strong>
+                  <small>Optional · choose one or more workers</small>
+                </span>
+                {recipientIds.length > 0 && (
+                  <b>{recipientIds.length} selected</b>
+                )}
+              </div>
+              {recipientIds.length > 0 && (
+                <div className="recipient-chips">
+                  {recipientIds.map((id) => {
+                    const employee = employeeMap.get(id);
+                    return (
+                      <button
+                        type="button"
+                        key={id}
+                        onClick={() =>
+                          setRecipientIds((current) =>
+                            current.filter((recipientId) => recipientId !== id),
+                          )
+                        }
+                        aria-label={`Remove ${employee?.name ?? "recipient"}`}
+                      >
+                        <span>{initials(employee?.name ?? "")}</span>
+                        {employee?.name}
+                        <b aria-hidden="true">×</b>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="recipient-search">
+                <span aria-hidden="true">⌕</span>
+                <input
+                  value={recipientSearch}
+                  onChange={(event) => setRecipientSearch(event.target.value)}
+                  placeholder="Search workers by name or department"
+                  aria-label="Search workers to share meeting information"
+                />
+              </div>
+              {recipientSearch.trim() && (
+                <div className="recipient-results">
+                  {data.employees
+                    .filter(
+                      (employee) =>
+                        employee.id !== currentUser.id &&
+                        employee.id !== reservedFor &&
+                        !recipientIds.includes(employee.id) &&
+                        `${employee.name} ${employee.department}`
+                          .toLowerCase()
+                          .includes(recipientSearch.trim().toLowerCase()),
+                    )
+                    .slice(0, 6)
+                    .map((employee) => (
+                      <button
+                        type="button"
+                        key={employee.id}
+                        onClick={() => {
+                          setRecipientIds((current) => [
+                            ...current,
+                            employee.id,
+                          ]);
+                          setRecipientSearch("");
+                        }}
+                      >
+                        <span className="recipient-avatar">
+                          {initials(employee.name)}
+                        </span>
+                        <span>
+                          <strong>{employee.name}</strong>
+                          <small>{employee.department}</small>
+                        </span>
+                        <b>＋</b>
+                      </button>
+                    ))}
+                </div>
+              )}
+              <p>
+                UniBook will prepare the room, date, time, and organizer details
+                for the selected workers. Real email delivery will be connected
+                by the IT Office later.
+              </p>
+            </div>
             {error && <p className="form-error">{error}</p>}
             <button className="reserve-button" onClick={reserve}>
               Confirm reservation
@@ -916,6 +1130,28 @@ export default function Home() {
         <EmployeeCard
           employee={selectedEmployee}
           onClose={() => setSelectedEmployee(null)}
+        />
+      )}
+      {selectedBooking && (
+        <ReservationDetails
+          booking={selectedBooking}
+          room={data.rooms.find(
+            (room) => room.id === selectedBooking.room_id,
+          )}
+          reservedFor={employeeMap.get(selectedBooking.employee_id)}
+          organizer={employeeMap.get(selectedBooking.created_by)}
+          recipients={(selectedBooking.recipient_ids ?? [])
+            .map((id) => employeeMap.get(id))
+            .filter((employee): employee is Employee => Boolean(employee))}
+          onClose={() => setSelectedBooking(null)}
+          onCancel={() => {
+            if (
+              window.confirm(
+                "Cancel this reservation? The room will become available for other workers.",
+              )
+            )
+              void cancelBooking(selectedBooking.id);
+          }}
         />
       )}
       {demoLogin && (
@@ -941,6 +1177,153 @@ export default function Home() {
   );
 }
 
+function DatePicker({
+  month,
+  selectedDate,
+  onMonthChange,
+  onSelect,
+  onClose,
+}: {
+  month: Date;
+  selectedDate: string;
+  onMonthChange: (month: Date) => void;
+  onSelect: (date: Date) => void;
+  onClose: () => void;
+}) {
+  const firstDayOffset = (month.getDay() + 6) % 7;
+  const daysInMonth = new Date(
+    month.getFullYear(),
+    month.getMonth() + 1,
+    0,
+  ).getDate();
+  const cells = Array.from(
+    { length: firstDayOffset + daysInMonth },
+    (_, index) => {
+      const dateNumber = index - firstDayOffset + 1;
+      return dateNumber > 0 ? dateNumber : null;
+    },
+  );
+  while (cells.length % 7) cells.push(null);
+
+  return (
+    <div className="date-picker" role="dialog" aria-label="Choose a date">
+      <div className="date-picker-header">
+        <button
+          onClick={() =>
+            onMonthChange(
+              new Date(month.getFullYear(), month.getMonth() - 1, 1, 12),
+            )
+          }
+          aria-label="Previous month"
+        >
+          ‹
+        </button>
+        <div className="month-year-selectors">
+          <span className="select-shell">
+            <select
+              value={month.getMonth()}
+              onChange={(event) =>
+                onMonthChange(
+                  new Date(
+                    month.getFullYear(),
+                    Number(event.target.value),
+                    1,
+                    12,
+                  ),
+                )
+              }
+              aria-label="Choose month"
+            >
+              {Array.from({ length: 12 }, (_, monthIndex) => (
+                <option key={monthIndex} value={monthIndex}>
+                  {new Date(2026, monthIndex, 1).toLocaleDateString("en-GB", {
+                    month: "long",
+                  })}
+                </option>
+              ))}
+            </select>
+            <span className="dropdown-chevron" aria-hidden="true" />
+          </span>
+          <span className="select-shell">
+            <select
+              value={month.getFullYear()}
+              onChange={(event) =>
+                onMonthChange(
+                  new Date(
+                    Number(event.target.value),
+                    month.getMonth(),
+                    1,
+                    12,
+                  ),
+                )
+              }
+              aria-label="Choose year"
+            >
+              {Array.from(
+                { length: 21 },
+                (_, index) => month.getFullYear() - 10 + index,
+              ).map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+            <span className="dropdown-chevron" aria-hidden="true" />
+          </span>
+        </div>
+        <button
+          onClick={() =>
+            onMonthChange(
+              new Date(month.getFullYear(), month.getMonth() + 1, 1, 12),
+            )
+          }
+          aria-label="Next month"
+        >
+          ›
+        </button>
+      </div>
+      <div className="date-picker-weekdays" aria-hidden="true">
+        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((weekday, index) => (
+          <span key={`${weekday}-${index}`}>{weekday}</span>
+        ))}
+      </div>
+      <div className="date-picker-grid">
+        {cells.map((dateNumber, index) => {
+          if (!dateNumber)
+            return <span key={`empty-${index}`} aria-hidden="true" />;
+          const date = new Date(
+            month.getFullYear(),
+            month.getMonth(),
+            dateNumber,
+            12,
+          );
+          const dateIso = iso(date);
+          const isSunday = date.getDay() === 0;
+          return (
+            <button
+              key={dateIso}
+              className={dateIso === selectedDate ? "selected-date" : ""}
+              disabled={isSunday}
+              onClick={() => onSelect(date)}
+              aria-label={date.toLocaleDateString("en-GB", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            >
+              {dateNumber}
+            </button>
+          );
+        })}
+      </div>
+      <button className="close-date-picker" onClick={onClose}>
+        Close
+      </button>
+    </div>
+  );
+}
+
 function EmployeeCard({
   employee,
   onClose,
@@ -954,7 +1337,11 @@ function EmployeeCard({
       onMouseDown={(event) => event.target === event.currentTarget && onClose()}
     >
       <section className="modal profile-card">
-        <button className="close-modal" aria-label="Close profile" onClick={onClose}>
+        <button
+          className="close-modal"
+          aria-label="Close profile"
+          onClick={onClose}
+        >
           ×
         </button>
         <div className="large-avatar">{initials(employee.name)}</div>
@@ -991,6 +1378,93 @@ function EmployeeCard({
   );
 }
 
+function ReservationDetails({
+  booking,
+  room,
+  reservedFor,
+  organizer,
+  recipients,
+  onClose,
+  onCancel,
+}: {
+  booking: Booking;
+  room?: Room;
+  reservedFor?: Employee;
+  organizer?: Employee;
+  recipients: Employee[];
+  onClose: () => void;
+  onCancel: () => void;
+}) {
+  const dateLabel = new Date(`${booking.date}T12:00:00`).toLocaleDateString(
+    "en-GB",
+    { weekday: "long", day: "numeric", month: "long" },
+  );
+  return (
+    <div
+      className="modal-backdrop"
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+    >
+      <section className="modal reservation-details" role="dialog" aria-modal="true">
+        <button
+          className="close-modal"
+          aria-label="Close reservation details"
+          onClick={onClose}
+        >
+          ×
+        </button>
+        <div className="reservation-details-icon" aria-hidden="true">✓</div>
+        <p className="eyebrow">YOUR RESERVATION</p>
+        <h2>{room?.name ?? "Meeting room"}</h2>
+        <div className="reservation-detail-grid">
+          <div>
+            <span>Date</span>
+            <strong>{dateLabel}</strong>
+          </div>
+          <div>
+            <span>Time</span>
+            <strong>
+              {formatTime(booking.start)}–{formatTime(booking.end)}
+            </strong>
+          </div>
+          <div>
+            <span>Reserved for</span>
+            <strong>{reservedFor?.name ?? "Employee"}</strong>
+          </div>
+          <div>
+            <span>Organizer</span>
+            <strong>{organizer?.name ?? "Employee"}</strong>
+          </div>
+        </div>
+        {recipients.length > 0 && (
+          <div className="reservation-detail-section">
+            <span>Meeting information shared with</span>
+            <div className="reservation-recipient-list">
+              {recipients.map((employee) => (
+                <b key={employee.id}>{employee.name}</b>
+              ))}
+            </div>
+          </div>
+        )}
+        {booking.guest_visit === 1 && (
+          <div className="reservation-detail-section guest-detail-summary">
+            <span>Guest visit</span>
+            <strong>Reception notification prepared</strong>
+            {booking.guest_message && <p>{booking.guest_message}</p>}
+          </div>
+        )}
+        <div className="reservation-detail-actions">
+          <button className="secondary-button" onClick={onClose}>
+            Close
+          </button>
+          <button className="cancel-reservation-button" onClick={onCancel}>
+            Cancel reservation
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function DemoLogin({
   employees,
   current,
@@ -1005,7 +1479,11 @@ function DemoLogin({
   return (
     <div className="modal-backdrop">
       <section className="modal demo-login">
-        <button className="close-modal" aria-label="Close account switcher" onClick={onClose}>
+        <button
+          className="close-modal"
+          aria-label="Close account switcher"
+          onClick={onClose}
+        >
           ×
         </button>
         <span className="brand-mark">U</span>
