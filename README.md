@@ -111,4 +111,4 @@ npm run build
 
 ## Project Status
 
-Active student project. The interface and reservation workflow are being improved step by step. This repository is a portfolio-safe demonstration and is not an official Unibank production system YET.
+Active student project. The interface and reservation workflow are being improved step by step. This repository is a portfolio-safe demonstration and is not an official Unibank production system.
